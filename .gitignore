@@ -1,0 +1,5 @@
+datadir
+__pycache__
+*.pyc
+*~
+*.swp
