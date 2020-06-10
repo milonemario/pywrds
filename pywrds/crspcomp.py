@@ -1,116 +1,127 @@
 """
 Provide merging and processing function for CRSP / Compustat
 """
-import pywrds as pw
-import pandas as pd
-import numpy as np
-import datetime
-
-w = pw.wrds('D:/finaldata')
-
-# Define the files #
-raw_msf = 'D:/wrds/crsp/sasdata/a_stock/msf.sas7bdat'
-raw_dsf = 'D:/wrds/crsp/sasdata/a_stock/dsf.sas7bdat'
-raw_lnkhist = 'D:/wrds/crsp/sasdata/a_ccm/ccmxpf_lnkhist.sas7bdat'
-# Could not find these files!!!
-### crsp_processed_ret_msf = 
-### crsp_processed_stats_dsf =
-
-
-# Convert the files #
-w.convert_data(raw_msf)
-w.convert_data(raw_dsf)
-w.convert_data(raw_lnkhist)
-### w.convert_data(crsp_processed_ret_msf)
-### w.convert_data(crsp_processed_stats_dsf)
-
-# The data can now be accessed using the filename prefix only #
-msf = 'msf'
-dsf = 'dsf'
-lnkhist = 'lnkhist'
-### crsp_processed_ret_msf = 'crsp_processed_ret_msf'
-### crsp_processed_stats_dsf = 'crsp_processed_stats_dsf'
-
-"""
-"Add GVKEY to CRSP Monthly data"
-- Add the gvkey information to crsp monthly data using the link table
-"""
-def get_gvkey(w, file_msf, file_linkingtable, columns, key=['gvkey', 'date']):
-    # Return the consolidated financial reports of US domestic industrial
-    # companies with standard accounting format.
-    # Add the necessary columns to process the data
-    cols_req = key + ['linktype', 'linkprim']
-    cols = cols_req + list(set(columns) - set(cols_req))
-    # Open funda data
-    df = w.open_data(file_msf, cols)
-    # Open the identifiers (names)
-    dn = w.open_data(file_linkingtable, cols)
-    # Filter the funda data
-    dn = dn[(dn.indfmt == 'INDL'|'LU') & (dn.linkprim == 'P', 'C')]
-    
-    # Not sure about this part!!!
-    ### & pd.notnull(dn['linkenddt']) = True
-    ### df['date'] >= dn['linkdt'] & df['date'] <= dn['linkenddt']
-	### df['date'] >= dn['linkdt'] 
-
-    # Merge the names informations
-    df = pd.merge(df, dn, on=['permco','permno')
-
-    # Check for duplicates on the key
-    n_dup = df.shape[0] - df[key].drop_duplicates().shape[0]
-    if n_dup > 0:
-        print("Warning: The data contains {:} duplicates".format(n_dup))
-    return df
-
-# Add GVKEY to CRSP monthly data
-cols_comp = ['permco', 'permno']
-msf_gvkey = get_gvkey(w, msf, lnkhist, cols_comp)
-
-"""
-"Add GVKEY to CRSP Daily data"
-- Add the gvkey information to crsp daily data using the link table
-"""
-# Add GVKEY to CRSP daily data
-dsf_gvkey = get_gvkey(w, dsf, lnkhist, cols_comp)
-
-
-"""
-"Create monthly data based on monthly CRSP"
-- Add the return info from CRSP processed monthly data 
-- Add year, month and day information for future merge with Compustat
-"""
-# Extract year, month and day from 'date' in msf_gvkey
-msf_gvkey['year'] = pd.DatetimeIndex(msf_gvkey['date']).year
-msf_gvkey['month'] = pd.DatetimeIndex(msf_gvkey['date']).month
-msf_gvkey['day'] = pd.DatetimeIndex(msf_gvkey['date']).day
-
-# Create monthly data based on monthly CRSP
-msf_gvkey_monthly = pd.merge(msf_gvkey, crsp_processed_ret_msf, on['permno','date'])
-
-"""
-"Create monthly data based on daily CRSP"
-- Use monthly msf_gvkey to only keep one row per month.
-- Remove now useless daily statistics: ret, vol, ask, bid, askhi, bidlo
-"""
-# Create monthly data based on daily CRSP
-dsf_gvkey_monthly = pd.merge(msf_gvkey, crsp_processed_stats_dsf, on['permno','date'])
-
-# Drop useless daily data
-dsf_gvkey_monthly.drop(['ret', 'vol', 'ask', 'bid', 'askhi', 'bidlo'], axis=1)
-
-"""
-"Create daily data based on daily CRSP"
-- Add the statistics info from CRSP processed daily data
-- Add year, month and day information for future merge with Compustat
-"""
-dsf_gvkey['year'] = pd.DatetimeIndex(dsf_gvkey['date']).year
-dsf_gvkey['month'] = pd.DatetimeIndex(dsf_gvkey['date']).month
-dsf_gvkey['day'] = pd.DatetimeIndex(dsf_gvkey['date']).day
-
-dsf_gvkey_daily = pd.merge(dsf_gvkey, crsp_processed_stats_dsf, on['permno','date'])
-
 
 "Merge Compustat and CRSP data"
 
-def merge_crsp_compustat(file_crsp, file_comp):
-    None
+# CRSP data is daily or monthly.
+# Compustat data is quarterly or annual.
+
+# CCM: Link History Table (CCMXPF_LNKHIST)
+# Link History Table (CCMXPF_LNKHIST) is Compustat-centric.
+# Link with CRSP PERMNO and Compustat GVKEY (many to one).
+# Link Type: LC and LU (most accurate links), LX and LD ("soft" links), NR and NU (no link available)
+
+# GVKEY: integer, PK(1)
+# LIID: char(3), PK(2)
+# LINKDT: integer (date), PK(3)
+# LINKDDT: integer (date)
+# PERMNO: integer
+# PERMCO: integer
+# LINKPRIM: char(3)
+# LINKTYPE: char(3)
+
+# Type of links supported by the CRSP CCM link:
+# 1. Find all securities in CRSP for Compustat
+# 2. Find primary security in CRSP for Compustat Company data
+# 3. Find data in CRSP for a specific Compustat Company and issue
+# 4. Find Compustat data for a given CRSP security
+# 5. Find Compustat company and security data for a CRSP security, only if it is considered primary
+
+# Variables:
+# linkprim: P, J, C, M
+# linktype: LC, LU, LX, LD, LS, LN, NR, NU
+# star_date: yyyy/mm/dd 
+# end_date: yyyy/mm/dd (value is 99999999 if still effective) 
+
+
+import pandas as pd
+import datetime as dt
+
+class ccm():
+
+    def __init__(self, file_crsp, file_comp, link_table, crsp_freq=None, comp_freq=None, linkprim=None, linktype=None, start_date=None, end_date=None):
+        
+        self.file_crsp = file_crsp
+        self.file_comp = file_comp
+        self.link_table = link_table
+
+        if crsp_freq is None:
+            self.crsp_freq = m
+        else:
+             self.crsp_freq = crsp_freq
+
+        if crsp_freq is None:
+            self.crsp_freq = a
+        else:
+             self.crsp_freq = crsp_freq
+
+        if linkprim is None:
+            self.linkprim = ['P','C']
+        else:
+             self.linkprim = linkprim
+
+        if linktype is None:
+            self.linktype = ['LC','LU']
+        else:
+             self.linktype = linktype
+
+        if start_date is None:
+            self.start_date = []
+        else:
+             self.start_date = start_date
+
+        if end_date is None:
+            self.end_date = 99999999
+        else:
+             self.end_date = end_date
+
+
+
+    def merge_crsp_compustat(file_crsp, file_comp, link_table, columns, key=['gvkey', 'date', 'datadate']):
+        
+        # Solution 1: let end user input the frequency of imported data
+        # Solution 2: check the frequency for imported data with code
+
+        # Add the necessary columns to process the data (permno, permco, link type, link primary)
+        cols_req = key + ['permno', 'permco', 'lpermco', 'lpermno','linktype','linkprim']
+        cols = cols_req + list(set(columns) - set(cols_req))
+
+        # Open data
+        df_crsp = w.open_data(file_crsp, cols)
+        df_comp = w.open_data(file_comp, cols)
+        df_lt = w.open_data(link_table, cols)
+
+        # Extract year, month, day information
+        df_crsp['year'] = pd.DatetimeIndex(df_crsp['date']).year
+        df_crsp['month'] = pd.DatetimeIndex(df_crsp['date']).month
+        df_crsp['day'] = pd.DatetimeIndex(df_crsp['date']).day # only for daily data!!!
+
+        # Filter the linking table data
+        df_lt = df_lt[(df_lt.linktype == 'LC' or 'LU') & df_lt[(df_lt.linkprim == 'P' or 'C')
+
+        # Add GVKEY to CRSP monthly data using the linking table
+        df_lt_crsp = pd.merge(df_lt, df_crsp, left_on=['permco', 'permno'], right_on=['lpermco', 'lpermno'])
+        
+        # Retain data within effective linking dates
+        df_lt_crsp = df_lt_crsp[df_lt_crsp.date >= df_lt_crsp.linkdt and df_lt_crsp.date <= df_lt_crsp.linkenddt]
+
+        # Add the return from CRSP processed data
+        # df_crsp = pd.merge(df_crsp, crsp_processed_ret, on=['permno','date']
+        # df_crsp = pd.merge(df_crsp, crsp_processed_stats_dsf, on=['permno','date']
+        
+        # Drop useless daily statistics (too specific!!)
+        # df_crsp.drop(columns = ['ret', 'vol', 'ask', 'bid', 'askhi', 'bidlo'])
+
+        # Merge CRSP data with GVKEY with Compustat data
+        df_ccm = pd.merge(df_comp, df_lt_crsp, how=right, left_on=['gvkey', 'datadate']), right_on=['gvkey', 'date'])
+        
+        # Check for duplicates on the key
+        n_dup. = df_ccm.shape[0] - df_ccm[key].drop_duplicates().shape[0]
+        if n_dup > 0:
+            print("Warning: The data contains {:} duplicates".format(n_dup))
+
+        return df_ccm
+
+
+
