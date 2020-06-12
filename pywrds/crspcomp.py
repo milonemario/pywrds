@@ -85,6 +85,14 @@ def merge_crsp_compustat(file_crsp, file_comp, link_table, columns, key=['gvkey'
 
     return df_ccm
 
+# Put year, month, day information in separate columns
+def extract_ymd(df, date)
+    df['year'] = df['date'].dt.year
+    df['month'] = df['date'].dt.month
+    df['day'] = df['date'].dt.day
+
+    return df
+
 # Determine monthly or daily CRSP data
 def check_monthly_or_daily(df_crsp):
     # Requires "permno" and "day" columns
