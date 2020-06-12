@@ -51,8 +51,15 @@ class wrds():
             # Open the file (by chunks)
             if ext == '.sas7bdat':
                 f = pd.read_sas(filename, chunksize=self.chunksize)
+                # Get the total number of rows
+                nrows = f.row_count
             elif ext == '.csv':
                 f = pd.read_csv(filename, chunksize=self.chunksize)
+                # Get the total number of rows
+                # Need to open the file (only one column)
+                f_tmp = pd.read_csv(filename, usecols=[0])
+                nrows = f_tmp.shape[0]
+                del(f_tmp)
             else:
                 raise Exception("This file format is not currently",
                                 "supported. Supported formats are:",
@@ -62,8 +69,9 @@ class wrds():
             pqschema = None
             for i, df in enumerate(f):
                 df = self._process_fields(df)
+                df.columns = map(str.lower, df.columns)  # Lower case col names
                 print("Progress conversion {}: {:2.0%}".format(name,
-                      (i+1)*f.chunksize/float(f.row_count)), end='\r')
+                      (i+1)*f.chunksize/float(nrows)), end='\r')
                 if i == 0:
                     t = pa.Table.from_pandas(df)
                     pqschema = t.schema

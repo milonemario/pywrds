@@ -2,7 +2,13 @@
 Provides processing functions for CRSP data
 """
 
-# Note: CRSP data is very clean, no need to remove duplicates
+
+def add_daily_return(w, file_data, file_dsf, column, ndays=1):
+    r"""
+    Add the compounded daily returns over 'ndays' days to the data 'file_data'
+    using returns contained in 'file_dsf'. It computes the coumpounded returns
+    from the date specified in column 'column' from 'file_data'
+    """
 
 
 def get_yearly_return(w, sf, data_frequency='monthly'):
