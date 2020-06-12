@@ -103,3 +103,20 @@ class wrds():
         #                df[c].str.decode('utf-8'))
         df = df.drop_duplicates()
         return df
+
+    def correct_columns_types(self, df, types=None):
+        # Apply the correct data type to all known columns
+        # Known columns are listed in the files contained in the
+        # folder 'types'
+        # A custom type file can be provided by the user.
+        None
+
+
+# Global fuctions
+
+
+def check_duplicates(df, key, description):
+    n_dup = df.shape[0] - df[key].drop_duplicates().shape[0]
+    if n_dup > 0:
+        print("Warning: The {:} contains {:} \
+              duplicates".format(description, n_dup))

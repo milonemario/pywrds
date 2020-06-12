@@ -2,6 +2,7 @@
 Provide merging and processing function for CRSP / Compustat
 """
 
+import pywrds as pw
 import pandas as pd
 # import datetime as dt
 
@@ -53,10 +54,11 @@ def get_permno_from_gvkey(w, file_data, link_table, col_date):
     # Open the data
     data = w.open_data(file_data, cols_data)
     link = w.open_data(link_table, cols_link)
-    # Check for duplicates for the user'sdata
-    n_dup = data.shape[0] - data[cols_data].drop_duplicates().shape[0]
-    if n_dup > 0:
-        print("Warning: The data contains {:} duplicates".format(n_dup))
+    # Check for duplicates for the user's data
+    pw.check_duplicates(data, cols_data, 'data')
+    # n_dup = data.shape[0] - data[cols_data].drop_duplicates().shape[0]
+    # if n_dup > 0:
+    #     print("Warning: The data contains {:} duplicates".format(n_dup))
     # Keep non NA rows (except fr the link table 'linkenddt'
     data = data.dropna()
     link = link.dropna(subset=['gvkey', 'lpermno', 'linktype', 'linkprim'])

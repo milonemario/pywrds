@@ -2,6 +2,8 @@
 Provides processing functions for CRSP data
 """
 
+import pandas as pd
+
 
 def add_daily_return(w, file_data, file_dsf, column, ndays=1):
     r"""
@@ -21,19 +23,17 @@ def delist_dummy(w):
     None
 
 
-def add_ret2anndates(w, file_original, file_crsp_daily, anndates, x_days)
+def add_ret2anndates(w, file_original, file_crsp_daily, anndates, x_days):
 
-# Need columns GVKEY, datetime, anndates
+    # Need columns GVKEY, datetime, anndates
 
-# Check if everything is alright(e.g. no return data in original dataset), otherwise raise exception
+    # Check if everything is alright(e.g. no return data in original dataset),
+    # otherwise raise exception
 
-# Add return data to original dataset on "permno"
+    # Add return data to original dataset on "permno"
 
-# Create empty dataframe with x days + 1 columns
-df_ret = pd.DataFrame(columns=range(x_days+1))
-
-
-
-df = pd.merge(file_original, file_crsp_daily["ret"], how='left',on='permno')
-
-return df
+    # Create empty dataframe with x days + 1 columns
+    # df_ret = pd.DataFrame(columns=range(x_days+1))
+    df = pd.merge(file_original, file_crsp_daily["ret"],
+                  how='left', on='permno')
+    return df
