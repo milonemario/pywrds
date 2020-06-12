@@ -107,9 +107,9 @@ def merge_crsp_compustat(w, file_crsp, file_comp, link_table, columns,
     df_lt = w.open_data(link_table, cols)
 
     # Extract year, month, day information
-    df_crsp['year'] = pd.DatetimeIndex(df_crsp['date']).year
-    df_crsp['month'] = pd.DatetimeIndex(df_crsp['date']).month
-    df_crsp['day'] = pd.DatetimeIndex(df_crsp['date']).day  # Daily data only
+    df_crsp['year'] = df_crsp['date'].dt.year
+    df_crsp['month'] = df_crsp['date'].dt.month
+    df_crsp['day'] = df_crsp['date'].dt.day
 
     # Filter the linking table data
     df_lt = df_lt[(df_lt.linktype == 'LC' or 'LU') &
@@ -142,3 +142,56 @@ def merge_crsp_compustat(w, file_crsp, file_comp, link_table, columns,
         print("Warning: The data contains {:} duplicates".format(n_dup))
 
     return df_ccm
+
+
+def extract_ymd(df, date):
+    # Put year, month, day information in separate columns
+    df['year'] = df['date'].dt.year
+    df['month'] = df['date'].dt.month
+    df['day'] = df['date'].dt.day
+    return df
+
+
+# Determine monthly or daily CRSP data
+def check_monthly_or_daily(df_crsp):
+    # Requires "permno" and "day" columns
+    # Add first 5 values of "day"
+    for i in range(0, 5):
+        if df_crsp['permno'][i] != df_crsp['permno'][i+1]:
+            # If permno are different, then the data is invalid.
+            print("Provided data is not valid.")
+            break
+        else:
+            x = df_crsp['day'][i+1] + df_crsp['day'][i]
+
+    # Compare the sum of first 5 values of "day" to a fixed number(145)
+    # For daily data, the maximum of the sum of 5 consecutive "day" values
+    # is 31+30+29+28+27=145.
+    # For monthly data, The sum of 5 consecutive values is always
+    # greater than 145.
+    if df_crsp['permno'][i] == df_crsp['permno'][i+1]:
+        if x > 145:
+            # Monthly if sum is greater than 145
+            print('month')
+        else:
+            # Daily if sum is not greater than 145
+            print('daily')
+    else:
+        # If permno are different, do nothing.
+        None
+
+
+def check_annual_or_quarterly(df_comp):
+    # Determine annual or quarterly Compustat data
+    # Requires "GVKEY" and "year" columns
+    # Compare 1st and 5th value of "year"
+    if df_comp['GVKEY'][0] == df_comp['GVKEY'][5]:
+        if df_comp['year'][0] == df_comp['year'][5]:
+            # Annual if 1st value matches 5th value
+            print('annual')
+        else:
+            # Quarterly if 1st value does not match 5th value
+            print('quarterly')
+    else:
+        # If GVKEY of 1st and 5th row are different, then the data is invalid.
+        print("Provided data is not valid.")
