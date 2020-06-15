@@ -1,0 +1,8 @@
+# Column types for compustat data
+
+# Int64:
+# float:
+  
+
+datetime64[ns]:
+  - anndats

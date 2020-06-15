@@ -5,6 +5,7 @@ Python module to process WRDS data
 # import sys
 import os
 import pathlib
+import yaml
 # import numpy as np
 import pandas as pd
 import pyarrow as pa
@@ -90,27 +91,24 @@ class wrds():
         return df
 
     def open_data(self, name, columns=None):
-        self._check_data_dir()
-        # Open the parquet file and convert it to a pandas DataFrame
-        filename_pq = self.datadir+name+'.parquet'
-        t = pq.read_table(filename_pq, columns=columns)
-        df = t.to_pandas()
-        del(t)
-        # Encode properly the string fields (remove bytes string types)
-        # for c in df.columns:
-        #    if df[c].dtype == object:
-        #        df[c] = df[c].where(df[c].apply(type) != bytes,
-        #                df[c].str.decode('utf-8'))
-        df = df.drop_duplicates()
+        if isinstance(name, pd.DataFrame):
+            # If the name refers to a pandas DataFrame, just return it
+            df = name[columns]
+        else:
+            # Otherwise, open the file from disk
+            self._check_data_dir()
+            # Open the parquet file and convert it to a pandas DataFrame
+            filename_pq = self.datadir+name+'.parquet'
+            t = pq.read_table(filename_pq, columns=columns)
+            df = t.to_pandas()
+            del(t)
+            # Encode properly the string fields (remove bytes string types)
+            # for c in df.columns:
+            #    if df[c].dtype == object:
+            #        df[c] = df[c].where(df[c].apply(type) != bytes,
+            #                df[c].str.decode('utf-8'))
+            df = df.drop_duplicates()
         return df
-
-    def correct_columns_types(self, df, types=None):
-        # Apply the correct data type to all known columns
-        # Known columns are listed in the files contained in the
-        # folder 'types'
-        # A custom type file can be provided by the user.
-        None
-
 
 # Global fuctions
 
@@ -120,3 +118,45 @@ def check_duplicates(df, key, description):
     if n_dup > 0:
         print("Warning: The {:} contains {:} \
               duplicates".format(description, n_dup))
+
+
+def correct_columns_types(df, types=None):
+    # Apply the correct data type to all known columns
+    # Known columns are listed in the files contained in the
+    # folder 'types'
+    # A custom type file can be provided by the user.
+    types_dir = os.path.dirname(__file__)+'/types/'
+
+    def get_changes(path):
+        with open(types_dir+fname) as f:
+            t = yaml.full_load(f)
+            # Create the final type list
+            types_list1 = {}  # Convert to float before Int64
+            types_list2 = {}
+            for k, l in t.items():
+                for v in l:
+                    types_list1[v] = k
+                    types_list2[v] = k
+                    if k == 'Int64':
+                        types_list1[v] = 'float'
+        # Select the common columns
+        cols_df = df.columns
+        cols_change = [v for v in cols_df if v in types_list2.keys()]
+        types_list_ch1 = {k: types_list1[k] for k in cols_change}
+        types_list_ch2 = {k: types_list2[k] for k in cols_change}
+        return([types_list_ch1, types_list_ch2])
+
+    # First use the predefined types
+    for fname in os.listdir(types_dir):
+        name, ext = os.path.splitext(fname)
+        if ext == '.yaml':
+            path = 'types/'+fname
+            changes = get_changes(path)
+            for ch in changes:
+                df = df.astype(ch)
+    # Then use the user provided types
+    if types is not None:
+        changes = get_changes(path)
+        for ch in changes:
+            df = df.astype(ch)
+    return(df)
