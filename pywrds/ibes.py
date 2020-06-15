@@ -25,7 +25,7 @@ def consensus(w, file_det, file_adjfactors=None, file_adj=None):
                         " or the adjustment file from IBES.")
 
 
-def get_a_forecast(file, columns, key=['ticker']):
+def get_a_forecast(w, file, columns, key=['ticker']):
     """Fetch analysts forecasts"""
     # Add the necessary columns to process the data
     cols_req = key + ['usfirm', 'curr_act', 'measure', 'actual', 'fpi']
@@ -53,7 +53,7 @@ def get_a_forecast(file, columns, key=['ticker']):
     return df
 
 
-def get_m_forecast(file, columns, key=['ticker']):
+def get_m_forecast(w, file, columns, key=['ticker']):
     """Fetch the management forecast data"""
     # Add the necessary columns to process the data
     cols_req = key + ['usfirm', 'curr', 'pdicity', 'measure', 'units']
@@ -73,7 +73,7 @@ def get_m_forecast(file, columns, key=['ticker']):
     return df
 
 
-def adjustments(file, columns, key=['ticker']):
+def adjustments(w, file, columns, key=['ticker']):
     """Fetch the adjustment factors"""
     # Add the necessary columns to process the data
     cols_req = key + ['usfirm']
@@ -89,7 +89,7 @@ def adjustments(file, columns, key=['ticker']):
     return df
 
 
-def numanalys(file, columns, key=['ticker']):
+def numanalys(w, file, columns, key=['ticker']):
     """Return the number of analysts for each (itic, fpedats)."""
     # Open ibes data
     df = w.open_data(file)
@@ -100,7 +100,7 @@ def numanalys(file, columns, key=['ticker']):
     return df
 
 
-def itic_split(file, columns, n):
+def itic_split(w, file, columns, n):
     """Select the firms that have at least n split"""
     df = df.groupby(['ticker'])['ticker'].count().to_frame('ticker_counts')
     df = df[(df['ticker_counts'] >= n)]
@@ -108,7 +108,7 @@ def itic_split(file, columns, n):
     return df
 
 
-def adj1(file, columns, key=['ticker']):
+def adj1(w, file, columns, key=['ticker']):
     """Create the new adjustment table  """
     # Add the necessary columns to process the data
     cols_req = key + ['spdates']
@@ -143,7 +143,7 @@ def adj1(file, columns, key=['ticker']):
     return df
 
 
-def _adjustmentfactors(file, columns, key=['ticker']):
+def _adjustmentfactors(w, file, columns, key=['ticker']):
     """Create an adjustment factor table with a start and end date for each
     factor. """
     # Add the necessary columns to process the data
@@ -177,7 +177,7 @@ def _adjustmentfactors(file, columns, key=['ticker']):
     return df
 
 
-def _a2(df):
+def _a2(w, df):
     """Keep the diluted EPS analysts estimates or the primary if no diluted
     available """
     # Create _id_p
@@ -199,7 +199,7 @@ def _a2(df):
 """Get the last 2 earnings annoucement dates"""
 
 
-def _ann1(df):
+def _ann1(w, df):
     # Sort data
     df = df.groupby(['ticker', 'fpedats', 'anndats'])[
         'analys'].nunique().reset_index()
@@ -216,7 +216,7 @@ def _ann1(df):
     return df
 
 
-def _ann2(df):
+def _ann2(w, df):
     # Create temporary column 'interval'
     df['interval'] = ''
     # Calculate difference and store values
@@ -235,7 +235,7 @@ def _ann2(df):
     return df
 
 
-def _ann3(df):
+def _ann3(w, df):
     # Sort data
     df = df.sort_values(by=['ticker', 'fpedats'],
                         ascending=[1, 1]).reset_index()
@@ -248,7 +248,7 @@ def _ann3(df):
     return df
 
 
-def _ann4(df):
+def _ann4(w, df):
     # Create temporary column 'interval'
     df['interval'] = df['anndats_l'] - df['anndats_ll']
     df['interval'] = df[df['interval'] / np.timedelta64(1, 'D')]
@@ -265,7 +265,7 @@ def _ann4(df):
     return df
 
 
-def _a3(df_a2, df_ann4):
+def _a3(w, df_a2, df_ann4):
     """Merge with analysts estimates"""
     df = pd.merge(d1, d2, on=['ticker', 'fpedats'])
 
@@ -277,7 +277,7 @@ def _a3(df_a2, df_ann4):
     (suspecting timestamps problems)"""
 
 
-def _mf1(df_m_forecast, df_a3):
+def _mf1(w, df_m_forecast, df_a3):
     df = pd.merge(d1, d2, on=['ticker', 'fpeyr', 'fpemon'])
 
     df.drop_duplicates(
@@ -286,7 +286,7 @@ def _mf1(df_m_forecast, df_a3):
     return df
 
 
-def _mf2(df_mf1):
+def _mf2(w, df_mf1):
     df = df[(df['mfdats'] >= df['anndats_l']) & (df['mfdats'] <= df['fpedats'])]
 
     df = df.sort_values(by=['ticker', 'fpeyr', 'fpemon', 'mfdats'],
@@ -297,7 +297,7 @@ def _mf2(df_mf1):
     return df
 
 
-def _amf1(df_a3, df_mf2):
+def _amf1(w, df_a3, df_mf2):
     """Merge the analysts estimates and management forecast data"""
     df = pd.merge(df_a3, df_mf2,
                   on=['ticker', 'fpedats', 'fpeyr', 'fpemon', 'anndats_l'])
@@ -305,7 +305,7 @@ def _amf1(df_a3, df_mf2):
     return df
 
 
-def _amf2(df_amf1, df_adj_factors):
+def _amf2(w, df_amf1, df_adj_factors):
     """Merge the adjustement factors"""
     df = pd.merge(df_a3, df_mf2, on='ticker')
 
@@ -320,7 +320,7 @@ def _amf2(df_amf1, df_adj_factors):
     return df
 
 
-def _amf3(df):
+def _amf3(w, df):
     """Compute the unajusted estimates and eps"""
     df['uest'] = df['est'] * df['adj']
     df['ueps'] = df['eps'] * df['adj']
@@ -332,7 +332,7 @@ def _amf3(df):
 no-disclosure"""
 
 
-def _expd_est(df):
+def _expd_est(w, df):
     """Ex-Post consensus when disclosure"""
     df = df.dropna(subset=['mfdats'])
     df = df[(df['estdats'] >= df['mfdats']) & (df['estdats'] <= df['fpedats'])]
@@ -346,7 +346,7 @@ def _expd_est(df):
     return df
 
 
-def _expd(df, n):
+def _expd(w, df, n):
     """Compute the unadjusted consensus"""
     n = 0.5
     df['meanest'] = df['uest'].mean()
@@ -356,45 +356,45 @@ def _expd(df, n):
     return df
 
 
-def _expnd_est():
+def _expnd_est(w, df):
     # Similar to _expd_est, possible to create one function
     None
 
 
-def _expnd():
+def _expnd(w, df):
     # Similar to _expd, possible to create one function
     None
 
 
-def _exp(df_expd, df_expnd):
+def _exp(w, df_expd, df_expnd):
     """Merge ex-post disclosures"""
     df = pd.merge(df_expd, df_expnd, how='inner')
 
     return df
 
 
-def _exa1_est():
+def _exa1_est(w, df):
     """Ex-Ante disclosure number 1: when MF(t) > EA(t-1)"""
     # Similar to _expd_est, possible to create one function
     None
 
 
-def _exa1():
+def _exa1(w, df):
     # Similar to _expd, possible to create one function
     None
 
 
-def _exa2_est():
+def _exa2_est(w, df):
     # Similar to _expd_est, possible to create one function
     None
 
 
-def _exa2():
+def _exa2(w, df):
     # Similar to _expd, possible to create one function
     None
 
 
-def ibes_consensus(df_amf3, df_exp, df_exa1, df_exa2):
+def ibes_consensus(w, df_amf3, df_exp, df_exa1, df_exa2):
     """Merge all"""
     # Rounding
 
