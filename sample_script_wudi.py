@@ -1,29 +1,27 @@
-import pywrds as pw
-import pandas as pd
+# This script provides an example on how to use the pywrd module to create
+# a dataset for use in empirical tests
 
+import pywrds as pw
+
+# Create the wrds object and set the data directory to use
+# The data directory is for new datasets creations
 w = pw.wrds('D:/finaldata')
 
-# Define the files #
-raw_msf = 'D:/wrds/crsp/sasdata/a_stock/msf.sas7bdat'
-raw_dsf = 'D:/wrds/crsp/sasdata/a_stock/dsf.sas7bdat'
-raw_funda = 'D:/wrds/crsp/sasdata/naa/funda.sas7bdat'
-raw_fundq = 'D:/wrds/crsp/sasdata/naa/fundq.sas7bdat'
-raw_lnkhist = 'D:/wrds/crsp/sasdata/a_ccm/ccmxpf_lnkhist.sas7bdat'
-
-# Convert the files #
-w.convert_data(raw_msf)
-w.convert_data(raw_dsf)
+# We first need to convert the raw data into files that pywrds can use
+# Define the files to use
+raw_funda = 'D:/wrds/comp/sasdata/naa/funda.sas7bdat'
+raw_names = 'D:/Data/Databases/wrds/comp/sasdata/naa/names.sas7bdat'
+# Convert the files (it wll automatically detect if the file has already been
+# converted unless force=True is given as argument)
 w.convert_data(raw_funda)
-w.convert_data(raw_fundaq)
-w.convert_data(raw_lnkhist)
+w.convert_data(raw_names)
 
-# The data can now be accessed using the filename prefix only #
-msf = 'msf'
-dsf = 'dsf'
+# The data can now be accessed using the filename prefix only
 funda = 'funda'
-fundq = 'fundq'
-lnkhist = 'lnkhist'
+names = 'names'
 
-# Get the data that we need
-cols = ['gvkey', 'retx']
-df_merged = pw.crspcomp.merge_crsp_compustat(w, msf, funda, m, a, cols)
+# Get the compustat data that we need
+cols_comp = ['gvkey', 'fyear', 'at', 'sic', 'naics']
+dfcomp = pw.comp.get_naa_funda_us(w, funda, names, cols_comp)
+
+print(dfcomp.head())

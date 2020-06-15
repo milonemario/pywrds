@@ -2,109 +2,12 @@
 Provides processing functions for IBES data
 """
 
-"""
-Import the necessary data from IBES
-"""
-
-# Fetch analysts forecast data
-def fetch_analyst_forecasts(w, file_espsus,columns)
-
-    # Add the necessary columns to process the data
-    cols_req = ['fpedats','anntims','anntims_act','usfirm','curr_act','measure''actual','fpi']
-    cols = cols_req + list(set(columns) - set(cols_req))
-
-    # Open data
-    df_aforecast = w.open_data(file_espsus, cols)
-
-    # Filter the ibes data
-    df_aforecast = df_aforecast.loc[df_aforecast['usfirm'].isin('1')])
-    df_aforecast = df_aforecast.loc[df_aforecast['curr_act'].isin('USD')])
-    df_aforecast = df_aforecast.loc[df_aforecast['measure'].isin('EPS')])
-    df_aforecast = df_aforecast[df_aforecast['actual'].notna()]
-    df_aforecast = df_aforecast.loc[df_aforecast['fpi'].isin(['6','7','8','9','N','O','P','Q','R','S','T','L','Y'])])
-
-    # Extract year and month information
-    df_aforecast['fpyr'] = df_aforecast['fpedats'].dt.year
-    df_aforecast['fpemon'] = df_aforecast['fpedats'].dt.month
-
-    # Convert 'anntims' and 'anntims_act' to datetime/timestamp?
-    # df_aforecast['anntims'] = pd.to_datetime(df_aforecast['anntims'], format="%Y%m%d%H%M%S")
-
-    return df_aforecast
-
-
-# Fetch the management forecast data
-def fetch_management_forecasts(w, file_guidance,columns,key='ticker')
-
-    # Add the necessary columns to process the data
-    cols_req = ['usfirm','curr','pdicity','measure','units']
-    cols = cols_req + list(set(columns) - set(cols_req))
-
-    # Open data
-    df_mforecast = w.open_data(file_guidance, cols)
-
-    # Filter the ibes data
-    df_mforecast = df_mforecast.loc[df_mforecast['usfirm'].isin('1')])
-    df_mforecast = df_mforecast.loc[df_mforecast['curr_act'].isin('USD')])
-    df_mforecast = df_mforecast.loc[df_mforecast['pdicity'].isin('QTR')])
-    df_mforecast = df_mforecast.loc[df_mforecast['measure'].isin('EPS')])
-    df_mforecast = df_mforecast.loc[df_mforecast['units'].isin('P/S')])
-    
-    # Convert 'anntims' to datetime/timestamp?
-    # df_ibes['anntims'] = pd.to_datetime(df_ibes['anntims'], format="%Y%m%d%H%M%S")
-
-    return df_mforecast
-
-# Fetch the adjustment factors
-def fetch_adj_factors(w, file_adj,columns)
-
-    # Add the necessary columns to process the data
-    cols_req = ['ticker','spdates','adj','usfirm']
-    cols = cols_req + list(set(columns) - set(cols_req))
-
-    # Open data
-    df_adj = w.open_data(file_adj, cols)
-
-    # Filter the ibes data
-    df_adj = df_adj.loc[df_adj['usfirm'].isin('1')])
-
-    return df_adj
-
-"""
-/*******************************************************************************
- * *********************** IBES data - Some statistics *************************
- * Create a statistics table that includes:
- * - numanalys		Number of distinct analysts by firm-forecast period
- * 
- * Input tables:	a_forecast
- * Output table:	ibes_stats
- ******************************************************************************/
- """
-
-def numanalys(w, file_det):
-    """Return the number of analysts for each (itic, fpedats)."""
-    # Assume data has itic, fpedats and analys
-    # Open data
-    df_det = w.open_data(file_det)
-
-    # Solution 1
-    #df_det = df_det.groupby(['itic','fpedats')['analys'].nunique()
-
-    # Solution 2
-    df_det = df_det.groupby(["itic", "number"])
-    df_det = df_det.aggregate(len)
-    df_det.reset_index().rename(columns={"analys": "num_analys"})
-
-    # Rename dataframe
-    df_ibes_stats = df_det
-
-    return ibes_stats
-
 
 def _adjustmentfactors(w, file_adj):
     """ Create an adjustment factor table with a start and end date
     for each factor."""
     None
+
 
 def consensus(w, file_det, file_adjfactors=None, file_adj=None):
     """Compute the consensus from individual analysts estimates."""
@@ -122,98 +25,402 @@ def consensus(w, file_det, file_adjfactors=None, file_adj=None):
                         " or the adjustment file from IBES.")
 
 
-
-'''
-*******************************************************************************
- * ********************* IBES data - Adjustment factors ************************
- * Create an adjustment factor table with a start and end date for each factors.
- * Input tables:	adj
- * Output table:	_adj_factors
- *****************************************************************************
- '''
-
-# Select the firms that have at least one split
-def select_one_split(w, file_adj,columns)
-
+def get_a_forecast(file, columns, key=['ticker']):
+    """Fetch analysts forecasts"""
     # Add the necessary columns to process the data
-    cols_req = []
+    cols_req = key + ['usfirm', 'curr_act', 'measure', 'actual', 'fpi']
     cols = cols_req + list(set(columns) - set(cols_req))
-
-    # Open data
-    df_adj = w.open_data(file_adj, cols)
-
-    # Count values and group by itic
-    df_adj['itic_counts'] = df_adj.groupby('itic').count()
-
-    # Select the data where itic_counts > 1
-    df_itic_split = df_adj[df_adj.itic_counts > 1]
-
-    return df_itic_split
-
-# Create the new adjustment table
-def new_adj_table(w, df)
+    # Open ibes data
+    df = w.open_data(file, cols)
+    # Filter the ibes data
+    df = df[(df['usfirm'] == 1) & (df['curr_act'] == 'USD') &
+            (df['measure'] == 'EPS') & (df['fpi'].isin(['6', '7', '8', '9', 'N',
+                                                        'O', 'P', 'Q', 'R', 'S',
+                                                        'T', 'L', 'Y']))]
+    # Drop if 'actual' is null
+    df = df.dropna(subset=['actual'])
+    # Extract year and month information from 'fpedats'
+    df['fpeyr'] = df['fpedats'].dt.year
+    df['fpemon'] = df['fpedats'].dt.month
+    # Convert 'anntims' and 'anntims_act' to seconds format
+    df['esttims'] = pd.to_datetime(df['anntims'], unit='s').dt.time
+    df['anntims'] = pd.to_datetime(df['anntims_act'], unit='s').dt.time
+    # Check for duplicates on the key
+    n_dup = df.shape[0] - df[key].drop_duplicates().shape[0]
+    if n_dup > 0:
+        print("Warning: The data contains {:} duplicates".format(n_dup))
 
     return df
 
 
-"""
-/*******************************************************************************
- * **************************** IBES data **************************************
- * Compute the consensus from individual analysts estimates
- * Input tables:	det_epsus, _adj_factors
- * Output table:	ibes2
- ******************************************************************************/
- """
-
-# Keep the diluted EPS analysts estimates or the primary if no diluted available
-
-def primary(w, file_a_forecasts, columns)
-
+def get_m_forecast(file, columns, key=['ticker']):
+    """Fetch the management forecast data"""
     # Add the necessary columns to process the data
-    cols_req = ['itic', 'fpedats', 'pdf']
+    cols_req = key + ['usfirm', 'curr', 'pdicity', 'measure', 'units']
     cols = cols_req + list(set(columns) - set(cols_req))
+    # Open ibes data
+    df = w.open_data(file, cols)
+    # Filter the ibes data
+    df = df[(df.usfirm == 1) & (df.curr == 'USD') &
+            (df.pdicity == 'QTR') & (df.measure == 'EPS') & (df.units == 'P/S')]
+    # Convert 'anntims' to seconds format
+    df['mftims'] = pd.to_datetime(df['anntims'], unit='s').dt.time
+    # Check for duplicates on the key
+    n_dup = df.shape[0] - df[key].drop_duplicates().shape[0]
+    if n_dup > 0:
+        print("Warning: The data contains {:} duplicates".format(n_dup))
 
-    # Open data
-    df_a_forecasts = w.open_data(file_a_forecasts, cols)
+    return df
 
-    # Count maximum and minimum and groupby
-    df_a_forecasts['pdf_max'] = df_a_forecasts.groupby(['itic','fpedats'])['pdf'].transform(max)
-    df_a_forecasts['pdf_min'] = df_a_forecasts.groupby(['itic','fpedats'])['pdf'].transform(min)
 
-    # Filter data where pdf_max='P' and pdf_min='P'
-    df_a_forecasts = df_a_forecasts.loc[df_a_forecasts['pdf_max'].isin('P')])
-    df_a_forecasts = df_a_forecasts.loc[df_a_forecasts['pdf_min'].isin('P')])
-
-    return df_a_forecasts
-
-def diluted(w, file_a_forecasts, columns)
-
+def adjustments(file, columns, key=['ticker']):
+    """Fetch the adjustment factors"""
     # Add the necessary columns to process the data
-    cols_req = ['itic', 'fpedats', 'pdf']
+    cols_req = key + ['usfirm']
     cols = cols_req + list(set(columns) - set(cols_req))
+    # Open ibes data
+    df = w.open_data(file, cols)
+    # Filter the ibes data
+    df = df[(df.usfirm == 1)]
+    # Check for duplicates on the key
+    n_dup = df.shape[0] - df[key].drop_duplicates().shape[0]
+    if n_dup > 0:
+        print("Warning: The data contains {:} duplicates".format(n_dup))
+    return df
 
-    # Open data
-    df_a_forecasts = w.open_data(file_a_forecasts, cols)
 
-    # Filter data where pdf='D'
-    df_a_forecasts = df_a_forecasts.loc[df_a_forecasts['pdf'].isin('D')])
+def numanalys(file, columns, key=['ticker']):
+    """Return the number of analysts for each (itic, fpedats)."""
+    # Open ibes data
+    df = w.open_data(file)
+    # Number of distinct analysts by firm-forecast period
+    df = df.groupby(['ticker', 'fpedats'])['analys'].nunique().reset_index()
+    df.rename(columns={'analys': 'numanalys'}, inplace=True)
 
-    return df_a_forecasts
+    return df
 
 
+def itic_split(file, columns, n):
+    """Select the firms that have at least n split"""
+    df = df.groupby(['ticker'])['ticker'].count().to_frame('ticker_counts')
+    df = df[(df['ticker_counts'] >= n)]
 
-# Merge the consensus and the statistics
-def merge_cons_stat(w,file_ibes_consesus,file_ibes_stats,columns)
+    return df
 
+
+def adj1(file, columns, key=['ticker']):
+    """Create the new adjustment table  """
     # Add the necessary columns to process the data
-    cols_req = ['itic','fpedats']
+    cols_req = key + ['spdates']
+    cols = cols_req + list(set(columns) - set(cols_req))
+    # Open data
+    df = w.open_data(file)
+    # Sort values
+    df = df.sort_values(by=['ticker', 'spdates'],
+                        ascending=[1, 0]).reset_index()
+    # Create ticker list
+    tickers = df['ticker'].unique()
+    ticker_list = df['ticker'].to_list()
+    # Get index of each ticker from ticker list
+    l_index = []
+    for i in range(0, len(tickers)):
+        x = ticker_list.index(tickers[i])
+        l_index.append(x)
+    # Create empty column 'enddt'
+    df['enddt'] = ''
+    # Set values to 0 for each ticker from list if 1st occurence
+    for i in l_index:
+        df['enddt'][i] = 0
+    # Store values into 'enddt' based on condition
+    for i in range(0, len(df)):
+        if df['enddt'][i] == 0:
+            continue
+        else:
+            df['enddt'][i] = df['spdates'][i - 1]
+    # Drop if 'adj' = 1
+    df = df.drop[(df['adj'] == 1)]
+
+    return df
+
+
+def _adjustmentfactors(file, columns, key=['ticker']):
+    """Create an adjustment factor table with a start and end date for each
+    factor. """
+    # Add the necessary columns to process the data
+    cols_req = key + ['spdates']
+    cols = cols_req + list(set(columns) - set(cols_req))
+    # Open ibes data
+    df = w.open_data(file)
+    # Sort values
+    df = df.sort_values(by=['ticker', 'spdates'],
+                        ascending=[1, 1]).reset_index()
+    # Create ticker list
+    tickers = df['ticker'].unique()
+    ticker_list = df['ticker'].to_list()
+    # Get index of each ticker from ticker list
+    l_index = []
+    for i in range(0, len(tickers)):
+        x = ticker_list.index(tickers[i])
+        l_index.append(x)
+    # Create empty column 'startdt'
+    df['startdt'] = ''
+    # Set values to 0 for each ticker from list if 1st occurence
+    for i in l_index:
+        df['startdt'][i] = 0
+    # Store values into 'startdt' based on condition
+    for i in range(0, len(df)):
+        if df['startdt'][i] == 0:
+            continue
+        else:
+            df['startdt'][i] = df['spdates'][i]
+
+    return df
+
+
+def _a2(df):
+    """Keep the diluted EPS analysts estimates or the primary if no diluted
+    available """
+    # Create _id_p
+    # df = df.groupby(['ticker','fpedats'])['pdf'].max().reset_index()
+    # df = df[df['pdf1'] == 'P']
+
+    # Create _a1
+    df = df[df['pdf'] == 'D']
+    # Drop when 'anndats' is null
+    df = df.dropna(subset=['anndats'])
+    # Remove observations where the period between FPE and EA is more than
+    # 120 days and that do not have EA date.
+    df['interval'] = (df['anndats'] - df['fpedats'])
+    df = df[df['interval'] / np.timedelta64(1, 'D') <= 120]
+
+    return df
+
+
+"""Get the last 2 earnings annoucement dates"""
+
+
+def _ann1(df):
+    # Sort data
+    df = df.groupby(['ticker', 'fpedats', 'anndats'])[
+        'analys'].nunique().reset_index()
+    df = df.sort_values(by=['ticker', 'fpedats'],
+                        ascending=[1, 1]).reset_index()
+    # Create empty column 'anndats_l'
+    df['anndats_l'] = ''
+    # Store values
+    for i in range(1, len(df)):
+        df['anndats_l'][i] = df['anndats'][i - 1]
+    # Convert 'anndats_l' format to datetime days
+    df['anndats_l'] = pd.to_datetime(df['anndats_l']).dt.floor('d')
+
+    return df
+
+
+def _ann2(df):
+    # Create temporary column 'interval'
+    df['interval'] = ''
+    # Calculate difference and store values
+    df['interval'] = df['anndats'] - df['anndats_l']
+    df['interval'] = df[df['interval'] / np.timedelta64(1, 'D') <= 120]
+
+    #    for i in range(0,len(df)):
+    #       if df['interval'][i] < 120:
+    #            continue
+    #       else:
+    #           df['anndats_l'][i] = df['anndats'][i] - 120
+
+    # Drop temporary column 'interval'
+    df.drop(columns=['interval'])
+
+    return df
+
+
+def _ann3(df):
+    # Sort data
+    df = df.sort_values(by=['ticker', 'fpedats'],
+                        ascending=[1, 1]).reset_index()
+    # Create empty column 'anndats_ll'
+    df['anndats_ll'] = ''
+    # Store values
+    for i in range(1, len(df)):
+        df['anndats_ll'][i] = df['anndats_l'][i - 1]
+
+    return df
+
+
+def _ann4(df):
+    # Create temporary column 'interval'
+    df['interval'] = df['anndats_l'] - df['anndats_ll']
+    df['interval'] = df[df['interval'] / np.timedelta64(1, 'D')]
+
+    #   for i in range(0,len(df)):
+    #       if df['interval'][i]<120:
+    #           continue
+    #       else:
+    #           df['anndats_ll'][i] = df['anndats_l'][i] - 120
+
+    # Drop temporary column 'interval'
+    df.drop(columns=['interval'])
+
+    return df
+
+
+def _a3(df_a2, df_ann4):
+    """Merge with analysts estimates"""
+    df = pd.merge(d1, d2, on=['ticker', 'fpedats'])
+
+    return df
+
+
+"""Keep MF(t) between EA(t-1) and FPE(t) Note that the window between the
+    annoucements is only defined with the dates to loose fewer observations
+    (suspecting timestamps problems)"""
+
+
+def _mf1(df_m_forecast, df_a3):
+    df = pd.merge(d1, d2, on=['ticker', 'fpeyr', 'fpemon'])
+
+    df.drop_duplicates(
+        subset=['ticker', 'fpeyr', 'fpemon', 'anndats_l', 'fpedats'])
+
+    return df
+
+
+def _mf2(df_mf1):
+    df = df[(df['mfdats'] >= df['anndats_l']) & (df['mfdats'] <= df['fpedats'])]
+
+    df = df.sort_values(by=['ticker', 'fpeyr', 'fpemon', 'mfdats'],
+                        ascending=[1, 1, 1, 1]).reset_index()
+
+    df.drop_duplicates(subset=['ticker', 'fpeyr', 'fpemon'])
+
+    return df
+
+
+def _amf1(df_a3, df_mf2):
+    """Merge the analysts estimates and management forecast data"""
+    df = pd.merge(df_a3, df_mf2,
+                  on=['ticker', 'fpedats', 'fpeyr', 'fpemon', 'anndats_l'])
+
+    return df
+
+
+def _amf2(df_amf1, df_adj_factors):
+    """Merge the adjustement factors"""
+    df = pd.merge(df_a3, df_mf2, on='ticker')
+
+    #   if df['startdt'] == 0:
+    #       df['fpedats'] < df['enddt']
+    #   else:
+    #       df['fpedats'] >= df['startdt']
+    #       df['fpedats'] < df['enddt']
+    # Complete the missing ones
+    df['adj'] = df['adj'].fillna(1)
+
+    return df
+
+
+def _amf3(df):
+    """Compute the unajusted estimates and eps"""
+    df['uest'] = df['est'] * df['adj']
+    df['ueps'] = df['eps'] * df['adj']
+
+    return df
+
+
+"""Find the Ex-Post and Ex-ante consensus depending on disclosure or 
+no-disclosure"""
+
+
+def _expd_est(df):
+    """Ex-Post consensus when disclosure"""
+    df = df.dropna(subset=['mfdats'])
+    df = df[(df['estdats'] >= df['mfdats']) & (df['estdats'] <= df['fpedats'])]
+
+    df['temp'] = df['estdats'] + df['esttims']
+
+    df = df.sort_values(by=['ticker', 'fpedats', 'temp'],
+                        ascending=[1, 1, 0]).reset_index()
+    #   n<=5
+
+    return df
+
+
+def _expd(df, n):
+    """Compute the unadjusted consensus"""
+    n = 0.5
+    df['meanest'] = df['uest'].mean()
+    #   df['medest'] =
+    #   df.groupby['ticker','fpedats']
+
+    return df
+
+
+def _expnd_est():
+    # Similar to _expd_est, possible to create one function
+    None
+
+
+def _expnd():
+    # Similar to _expd, possible to create one function
+    None
+
+
+def _exp(df_expd, df_expnd):
+    """Merge ex-post disclosures"""
+    df = pd.merge(df_expd, df_expnd, how='inner')
+
+    return df
+
+
+def _exa1_est():
+    """Ex-Ante disclosure number 1: when MF(t) > EA(t-1)"""
+    # Similar to _expd_est, possible to create one function
+    None
+
+
+def _exa1():
+    # Similar to _expd, possible to create one function
+    None
+
+
+def _exa2_est():
+    # Similar to _expd_est, possible to create one function
+    None
+
+
+def _exa2():
+    # Similar to _expd, possible to create one function
+    None
+
+
+def ibes_consensus(df_amf3, df_exp, df_exa1, df_exa2):
+    """Merge all"""
+    # Rounding
+
+    # Merge datasets on 'ticker' and 'fpedats'
+    df = pd.merge(df_amf3, df_exp, on=['ticker', 'fpedats'])
+    df = pd.merge(df, df_exa1, on=['ticker', 'fpedats'])
+    df = pd.merge(df, df_exa2, on=['ticker', 'fpedats'])
+    # Retain unique values
+    df.drop_duplicates(
+        subset=['ticker', 'fpedats', 'fpeyr', 'fpemon', 'anndats', 'mfdats',
+                'eps,val_1', 'val_2', 'mean_at_date'])
+
+    return df
+
+
+def merge_consensus_stats(w, file_ibes_consesus, file_ibes_stats, columns):
+    """Merge the consensus and the statistics"""
+    # Add the necessary columns to process the data
+    cols_req = ['itic', 'fpedats']
     cols = cols_req + list(set(columns) - set(cols_req))
 
     # Open data
     df_ibes_consesus = w.open_data(file_ibes_consesus, cols)
     df_ibes_stats = w.open_data(file_ibes_stats, cols)
 
-# Merge the two datasets on 'itic' and 'fpedats'
-df_ibes = pd.merge(df_ibes_consesus, df_ibes_stats,on=['itic','fpedats'])
+    # Merge the two datasets on 'itic' and 'fpedats'
+    df_ibes = pd.merge(df_ibes_consesus, df_ibes_stats, on=['itic', 'fpedats'])
 
-return df_ibes
+    return df_ibes
