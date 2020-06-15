@@ -144,9 +144,10 @@ def merge_crsp_compustat(w, file_crsp, file_comp, link_table, columns,
 
 def extract_ymd(df, date):
     # Put year, month, day information in separate columns
-    df['year'] = df['date'].dt.year
-    df['month'] = df['date'].dt.month
-    df['day'] = df['date'].dt.day
+    df['year'] = df.date.dt.year
+    df['month'] = df.date.dt.month
+    df['day'] = df.date.dt.day
+    
     return df
 
 
@@ -183,13 +184,15 @@ def check_annual_or_quarterly(df_comp):
     # Determine annual or quarterly Compustat data
     # Requires "GVKEY" and "year" columns
     # Compare 1st and 5th value of "year"
-    if df_comp['GVKEY'][0] == df_comp['GVKEY'][5]:
+    df['year'] = df.datadate.dt.year  # Extract year information
+
+    if df_comp['gvkey'][0] == df_comp['gvkey'][5]:
         if df_comp['year'][0] == df_comp['year'][5]:
-            # Annual if 1st value matches 5th value
-            print('annual')
-        else:
-            # Quarterly if 1st value does not match 5th value
+            # Quarterly if 1st value matches 5th value
             print('quarterly')
+        else:
+            # Annual if 1st value does not match 5th value
+            print('annual')
     else:
         # If GVKEY of 1st and 5th row are different, then the data is invalid.
         print("Provided data is not valid.")
