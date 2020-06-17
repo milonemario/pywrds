@@ -3,14 +3,39 @@ Provides processing functions for CRSP data
 """
 
 import pandas as pd
+import numpy as np
 
 
-def add_daily_return(w, file_data, file_dsf, column, ndays=1):
+def daily_returns(w, file_data, file_dsf, col_date, ndays=1):
     r"""
     Add the compounded daily returns over 'ndays' days to the data 'file_data'
-    using returns contained in 'file_dsf'. It computes the coumpounded returns
+    using returns contained in 'file_dsf'. It computes the compounded returns
     from the date specified in column 'column' from 'file_data'
     """
+    # Open the necessary data
+    cols_data = ['permno', col_date]
+    cols_dsf = ['permno', 'date', 'ret']
+    data = w.open_data(file_data, cols_data)
+    dsf = w.open_data(file_dsf, cols_dsf)
+    # Remove the unnecessar permno from dsf
+    pn_list = pd.unique(data.permno)
+    dsf = dsf[dsf.permno.isin(pn_list)]
+    # Create the timeseirs index
+    dsf = dsf.set_index('date')
+    # Compute the compounded returns
+    if ndays > 1:
+        dsf['ln1ret'] = np.log(1 + dsf.ret)
+        s = dsf.groupby('permno').rolling(ndays).ln1ret.sum()
+        dsf['s'] = s.shift(1-ndays).values
+        dsf['cret'] = np.exp(dsf.s) - 1
+        dsf = dsf.drop(['ln1ret', 's'], 1)
+    else:
+        dsf['cret'] = dsf.ret
+    dsf = dsf.drop('ret', 1).reset_index()
+    # Merge the cumulative return to the data
+    m = data.merge(dsf, how='left', left_on=cols_data,
+                   right_on=['permno', 'date'])
+    return(m.cret)
 
 
 def get_yearly_return(w, sf, data_frequency='monthly'):

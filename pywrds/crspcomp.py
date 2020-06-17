@@ -63,12 +63,8 @@ def get_permno_from_gvkey(w, file_data, link_table, col_date):
     data = data.dropna()
     link = link.dropna(subset=['gvkey', 'lpermno', 'linktype', 'linkprim'])
     # Correct the columns types
-    data.gvkey = data.gvkey.astype(int)
-    data[col_date] = data[col_date].astype('datetime64[ns]')
-    link.gvkey = link.gvkey.astype(int)
-    link.lpermno = link.lpermno.astype(int)
-    link.linkdt = link.linkdt.astype('datetime64[ns]')
-    link.linkenddt = link.linkenddt.astype('datetime64[ns]')
+    data = pw.correct_columns_types(data)
+    link = pw.correct_columns_types(link)
     # Retrieve the accurate links (LC, LU) for primary securities (P, C)
     link = link[(link.linktype.isin(['LC', 'LU'])) &
                 (link.linkprim.isin(['P', 'C']))]

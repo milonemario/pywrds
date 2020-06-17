@@ -1,0 +1,9 @@
+# Column types for crsp data
+
+# Int64:
+float:
+  - permno
+  - permco
+
+datetime64[ns]:
+  - TODO
