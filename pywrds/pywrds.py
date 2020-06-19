@@ -29,7 +29,9 @@ class wrds():
         self.chunksize = size
 
     def set_data_directory(self, datadir):
-        # Defines the temporary data directory to store intermediate datasets
+        """ Defines the temporary data directory to store
+        intermediate datasets.
+        """
         if datadir[-1] != '/':
             self.datadir = datadir+'/'
         else:
@@ -38,7 +40,9 @@ class wrds():
         pathlib.Path(datadir).mkdir(parents=True, exist_ok=True)
 
     def convert_data(self, filename, force=False):
-        # Convert the given file to arrow and save it in the data directory
+        """ Convert the given file to arrow and save it in the
+        data directory.
+        """
         self._check_data_dir()
         # Get the file type
         name, ext = os.path.splitext(os.path.basename(filename))
@@ -67,13 +71,16 @@ class wrds():
                                 ".sas7bdat, .csv")
             # Write the data
             pqwriter = None
-            pqschema = None
+            # pqschema = None
             for i, df in enumerate(f):
                 df = self._process_fields(df)
                 df.columns = map(str.lower, df.columns)  # Lower case col names
                 print("Progress conversion {}: {:2.0%}".format(name,
                       (i+1)*f.chunksize/float(nrows)), end='\r')
                 if i == 0:
+                    # Correct the column types on the first chunk to get
+                    # the correct schema
+                    df = correct_columns_types(df)
                     t = pa.Table.from_pandas(df)
                     pqschema = t.schema
                     pqwriter = pq.ParquetWriter(filename_pq, t.schema)
@@ -83,14 +90,19 @@ class wrds():
             pqwriter.close()
 
     def _process_fields(self, df):
-        # Encode properly the string fields (remove bytes string types)
+        """ Properly encode the string fields (remove bytes string types) """
         for c in df.columns:
             if df[c].dtype == object:
                 df[c] = df[c].where(df[c].apply(type) != bytes,
                                     df[c].str.decode('utf-8'))
         return df
 
-    def open_data(self, name, columns=None):
+    def open_data(self, name, columns=None, types=None):
+        """ Open the data and return a pandas DataFrame.
+        If a DataFrame is given, return the specified columns.
+        If a string is given, return the converted data with the
+        specifid columns.
+        """
         if isinstance(name, pd.DataFrame):
             # If the name refers to a pandas DataFrame, just return it
             df = name[columns]
@@ -102,18 +114,16 @@ class wrds():
             t = pq.read_table(filename_pq, columns=columns)
             df = t.to_pandas()
             del(t)
-            # Encode properly the string fields (remove bytes string types)
-            # for c in df.columns:
-            #    if df[c].dtype == object:
-            #        df[c] = df[c].where(df[c].apply(type) != bytes,
-            #                df[c].str.decode('utf-8'))
             df = df.drop_duplicates()
+        df = correct_columns_types(df, types)
         return df
 
-# Global fuctions
+
+# Global functions
 
 
 def check_duplicates(df, key, description):
+    """ Check duplicates and print a message if needed. """
     n_dup = df.shape[0] - df[key].drop_duplicates().shape[0]
     if n_dup > 0:
         print("Warning: The {:} contains {:} \
@@ -121,10 +131,10 @@ def check_duplicates(df, key, description):
 
 
 def correct_columns_types(df, types=None):
-    # Apply the correct data type to all known columns
-    # Known columns are listed in the files contained in the
-    # folder 'types'
-    # A custom type file can be provided by the user.
+    """ Apply the correct data type to all known columns.
+    Known columns are listed in the files contained in the folder 'types'.
+    A custom type file can be provided by the user.
+    """
     types_dir = os.path.dirname(__file__)+'/types/'
 
     def get_changes(path):

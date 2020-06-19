@@ -2,6 +2,9 @@
 
 # Int64:
 # float:
+
+string:
+  - currfl
   
 
 datetime64[ns]:

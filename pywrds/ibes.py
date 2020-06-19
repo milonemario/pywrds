@@ -2,6 +2,20 @@
 Provides processing functions for IBES data
 """
 
+import pandas as pd
+
+
+def get_forecasts(w, file_det, at_date, for_quarter, min_date,
+                  file_adjfactors=None, file_adj=None):
+    """ Return analysts forecasts at a given date for a given quarter.
+    Do not consider forecasts prior to min_date.
+    """
+    cols = ['ticker', 'analys', 'value', 'actual', 'anndats', 'anndats_act',
+            'fpedats']
+    det = w.open_data(file_det, cols)
+    print(det[0:1000])
+    None
+
 
 def _adjustmentfactors(w, file_adj):
     """ Create an adjustment factor table with a start and end date
@@ -10,31 +24,23 @@ def _adjustmentfactors(w, file_adj):
     cols = ['ticker', 'spdates', 'adj']
     # Open adjustment factors data
     df_adj = w.open_data(file_adj, cols)
-
     # Select the firms that have at least one split
     df_ticker = df_adj.groupby(['ticker'])['ticker'].count(). \
         to_frame('ticker_counts')
     df_ticker = df_ticker[(df_ticker['ticker_counts'] > 1)].reset_index()
     ticker_list = df_ticker['ticker'].to_list()
-
     # Create the new adjustment table
     df_ticker = df_ticker.sort_values(by=['ticker', 'spdates'],
-                                      ascending=[1, 0]). \
-        reset_index()
+                                      ascending=[1, 0]).reset_index()
     tickers = df_adj['ticker'].unique()
-
     list_idx = []
     for i in range(0, len(tickers)):
         if tickers[i] in ticker_list:
             idx = ticker_list.index(tickers[i])
             list_idx.append(idx)
-        else:
-            continue
-
-    df = pd.merge(df_ticker, df_adj,on='ticker')
+    df = pd.merge(df_ticker, df_adj, on='ticker')
     df['enddt'] = ''
     df['startdt'] = ''
-
     # Solution 1 (Set all dates first, then change first occurrences to 0)
     #   for i in range (1,len(df)):
     #        df['enddt'][i] = df['spdates'][i-1]
@@ -42,26 +48,23 @@ def _adjustmentfactors(w, file_adj):
     #   for i in l:
     #       df['enddt'][i] = 0
     #       df['startdt'][i] = 0
-
     # Solution 2 (Set first occurrences to 0, then set all other dates)
-    for i in l:
-        df['enddt'][i] = 0
-        df['startdt'][i] = 0
-
+    # for i in l:
+    #     df['enddt'][i] = 0
+    #     df['startdt'][i] = 0
     for i in range(1, len(df)):
         if df['enddt'][i] == 0:
             continue
         else:
             df['enddt'][i] = df['spdates'][i - 1]
             df['startdt'][i] = df['spdates'][i]
-
     return df
 
 
 # Create a statistics table that includes:
 # -numanalys    Number of distinct analysts by firm-forecast period
 
-def numanalys(file_det):
+def numanalys(w, file_det):
     """Return the number of analysts for each (itic, fpedats)."""
     # Open the det file with the necessary fields
     cols = ['ticker', 'fpedats', 'analys']
@@ -73,12 +76,12 @@ def numanalys(file_det):
     return df
 
 
-def consensus(file_det, file_adjfactors=None, file_adj=None, start_date=[],
+def consensus(w, file_det, file_adjfactors=None, file_adj=None, start_date=[],
               end_date=[]):
     """Compute the consensus from individual analysts estimates."""
     # Open the det file with the necessary fields
-    # cols = ['ticker', 'usfirm', 'curr_act', 'measure', 'fpi', 'actual',
-    #        'fpedats']
+    cols = ['ticker', 'usfirm', 'curr_act', 'measure', 'fpi', 'actual',
+            'fpedats']
     det = w.open_data(file_det, cols)
     # Opent the adjustment factors file
     if file_adjfactors is not None:
@@ -116,7 +119,7 @@ def consensus(file_det, file_adjfactors=None, file_adj=None, start_date=[],
     # Merge the adjustement factors
     df = pd.merge(df_afc, df_adj, on='ticker')
 
-    """Filter data btw start and end dates, then compute unadjusted estimates"""
+    # Filter data btw start and end dates, then compute unadjusted estimates
     # Filter data for forecast period end dates
     # between start date(included) and end date(not included)
     start_date = ['startdt']
