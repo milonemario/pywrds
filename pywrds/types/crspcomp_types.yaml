@@ -1,9 +1,0 @@
-# Column types for compustat data
-
-#Int64:
-float:
-  - gvkey
-
-datetime64[ns]:
-  - linkdt
-  - linkenddt

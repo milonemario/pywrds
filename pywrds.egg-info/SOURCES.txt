@@ -1,0 +1,17 @@
+setup.py
+pywrds/__init__.py
+pywrds/cboe.py
+pywrds/comp.py
+pywrds/crsp.py
+pywrds/crspcomp.py
+pywrds/fred.py
+pywrds/ibes.py
+pywrds/icc.py
+pywrds/pywrds.py
+pywrds/sec.py
+pywrds/tr.py
+pywrds.egg-info/PKG-INFO
+pywrds.egg-info/SOURCES.txt
+pywrds.egg-info/dependency_links.txt
+pywrds.egg-info/not-zip-safe
+pywrds.egg-info/top_level.txt

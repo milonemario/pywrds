@@ -1,0 +1,10 @@
+Metadata-Version: 1.0
+Name: pywrds
+Version: 0.0.1
+Summary: Python module to process WRDS data (mainly)
+Home-page: https://github.com/milonemario/pywrds
+Author: Mario Milone
+Author-email: milonemario@gmail.com
+License: BSD-3
+Description: UNKNOWN
+Platform: UNKNOWN
